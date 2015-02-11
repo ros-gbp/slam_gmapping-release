@@ -1,3 +1,26 @@
+## slam_gmapping (jade) - 1.3.5-0
+
+The packages in the `slam_gmapping` repository were released into the `jade` distro by running `/usr/bin/bloom-release --ros-distro jade --track jade slam_gmapping` on `Wed, 11 Feb 2015 16:58:37 -0000`
+
+These packages were released:
+- `gmapping`
+- `slam_gmapping`
+
+Version of package(s) in repository `slam_gmapping`:
+- upstream repository: https://github.com/ros-perception/slam_gmapping
+- release repository: unknown
+- rosdistro version: `null`
+- old version: `null`
+- new version: `1.3.5-0`
+
+Versions of tools used:
+- bloom version: `0.5.18`
+- catkin_pkg version: `0.2.6`
+- rosdep version: `0.11.1`
+- rosdistro version: `0.4.0`
+- vcstools version: `0.1.36`
+
+
 ## slam_gmapping (indigo) - 1.3.5-0
 
 The packages in the `slam_gmapping` repository were released into the `indigo` distro by running `/usr/local/bin/bloom-release -r indigo -t indigo slam_gmapping` on `Thu, 28 Aug 2014 18:15:59 -0000`
