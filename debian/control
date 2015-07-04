@@ -1,0 +1,12 @@
+Source: ros-indigo-slam-gmapping
+Section: misc
+Priority: extra
+Maintainer: Vincent Rabaud <vincent.rabaud@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), ros-indigo-catkin
+Homepage: http://ros.org/wiki/slam_gmapping
+Standards-Version: 3.9.2
+
+Package: ros-indigo-slam-gmapping
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-indigo-gmapping, ros-indigo-openslam-gmapping
+Description: slam_gmapping contains a wrapper around gmapping which provides SLAM capabilities.
