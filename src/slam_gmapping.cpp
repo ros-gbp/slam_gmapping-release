@@ -110,7 +110,6 @@ Initial map dimensions and resolution:
 #include <iostream>
 
 #include <time.h>
-#include <cfloat>
 
 #include "ros/ros.h"
 #include "ros/console.h"
@@ -157,7 +156,6 @@ void SlamGMapping::init()
   ROS_ASSERT(tfB_);
 
   gsp_laser_ = NULL;
-  gsp_laser_angle_increment_ = 0.0;
   gsp_odom_ = NULL;
 
   got_first_scan_ = false;
@@ -277,7 +275,8 @@ void SlamGMapping::startReplay(const std::string & bag_fname, std::string scan_t
   topics.push_back(scan_topic);
   rosbag::View viewall(bag, rosbag::TopicQuery(topics));
 
-  std::queue<sensor_msgs::LaserScan::ConstPtr> s_queue;
+  // Store up to 5 messages and there error message (if they cannot be processed right away)
+  std::queue<std::pair<sensor_msgs::LaserScan::ConstPtr, std::string> > s_queue;
   foreach(rosbag::MessageInstance const m, viewall)
   {
     tf::tfMessage::ConstPtr cur_tf = m.instantiate<tf::tfMessage>();
@@ -296,11 +295,13 @@ void SlamGMapping::startReplay(const std::string & bag_fname, std::string scan_t
     if (s != NULL) {
       if (!(ros::Time(s->header.stamp)).is_zero())
       {
-        s_queue.push(s);
+        s_queue.push(std::make_pair(s, ""));
       }
       // Just like in live processing, only process the latest 5 scans
-      if (s_queue.size() > 5)
+      if (s_queue.size() > 5) {
+        ROS_WARN_STREAM("Dropping old scan: " << s_queue.front().second);
         s_queue.pop();
+      }
       // ignoring un-timestamped tf data 
     }
 
@@ -310,19 +311,15 @@ void SlamGMapping::startReplay(const std::string & bag_fname, std::string scan_t
       try
       {
         tf::StampedTransform t;
-        tf_.lookupTransform(s_queue.front()->header.frame_id, odom_frame_, s_queue.front()->header.stamp, t);
-        this->laserCallback(s_queue.front());
+        tf_.lookupTransform(s_queue.front().first->header.frame_id, odom_frame_, s_queue.front().first->header.stamp, t);
+        this->laserCallback(s_queue.front().first);
         s_queue.pop();
       }
       // If tf does not have the data yet
-      catch(tf::ExtrapolationException& e)
+      catch(tf2::TransformException& e)
       {
-        ROS_WARN("Wait for TF data: %s", e.what());
-        break;
-      }
-      catch(tf::LookupException& e)
-      {
-        ROS_WARN("TF data incomplete, waiting until data is extracted from the bag (%s)", e.what());
+        // Store the error to display it if we cannot process the data after some time
+        s_queue.front().second = std::string(e.what());
         break;
       }
     }
@@ -363,13 +360,13 @@ SlamGMapping::~SlamGMapping()
 bool
 SlamGMapping::getOdomPose(GMapping::OrientedPoint& gmap_pose, const ros::Time& t)
 {
-  // Get the laser's pose
-  tf::Stamped<tf::Pose> ident (tf::Transform(tf::createQuaternionFromRPY(0,0,0),
-                                           tf::Vector3(0,0,0)), t, laser_frame_);
+  // Get the pose of the centered laser at the right time
+  centered_laser_pose_.stamp_ = t;
+  // Get the laser's pose that is centered
   tf::Stamped<tf::Transform> odom_pose;
   try
   {
-    tf_.transformPose(odom_frame_, ident, odom_pose);
+    tf_.transformPose(odom_frame_, centered_laser_pose_, odom_pose);
   }
   catch(tf::TransformException e)
   {
@@ -405,13 +402,6 @@ SlamGMapping::initMapper(const sensor_msgs::LaserScan& scan)
     return false;
   }
 
-  // Check that laserscan is from -x to x in angles:
-  if (fabs(fabs(scan.angle_min) - fabs(scan.angle_max)) > FLT_EPSILON)
-  {
-    ROS_ERROR("Scan message must contain angles from -x to x, i.e. angle_min = -angle_max");
-    return false;
-  }
-
   // create a point 1m above the laser position and transform it into the laser-frame
   tf::Vector3 v;
   v.setValue(0, 0, 1 + laser_pose.getOrigin().z());
@@ -439,22 +429,37 @@ SlamGMapping::initMapper(const sensor_msgs::LaserScan& scan)
 
   gsp_laser_beam_count_ = scan.ranges.size();
 
-  int orientationFactor;
+  double angle_center = (scan.angle_min + scan.angle_max)/2;
+
   if (up.z() > 0)
   {
-    orientationFactor = 1;
+    do_reverse_range_ = scan.angle_min > scan.angle_max;
+    centered_laser_pose_ = tf::Stamped<tf::Pose>(tf::Transform(tf::createQuaternionFromRPY(0,0,angle_center),
+                                                               tf::Vector3(0,0,0)), ros::Time::now(), laser_frame_);
     ROS_INFO("Laser is mounted upwards.");
   }
   else
   {
-    orientationFactor = -1;
+    do_reverse_range_ = scan.angle_min < scan.angle_max;
+    centered_laser_pose_ = tf::Stamped<tf::Pose>(tf::Transform(tf::createQuaternionFromRPY(M_PI,0,-angle_center),
+                                                               tf::Vector3(0,0,0)), ros::Time::now(), laser_frame_);
     ROS_INFO("Laser is mounted upside down.");
   }
 
-  angle_min_ = orientationFactor * scan.angle_min;
-  angle_max_ = orientationFactor * scan.angle_max;
-  gsp_laser_angle_increment_ = orientationFactor * scan.angle_increment;
-  ROS_DEBUG("Laser angles top down in laser-frame: min: %.3f max: %.3f inc: %.3f", angle_min_, angle_max_, gsp_laser_angle_increment_);
+  // Compute the angles of the laser from -x to x, basically symmetric and in increasing order
+  laser_angles_.resize(scan.ranges.size());
+  // Make sure angles are started so that they are centered
+  double theta = - std::fabs(scan.angle_min - scan.angle_max)/2;
+  for(unsigned int i=0; i<scan.ranges.size(); ++i)
+  {
+    laser_angles_[i]=theta;
+    theta += std::fabs(scan.angle_increment);
+  }
+
+  ROS_DEBUG("Laser angles in laser-frame: min: %.3f max: %.3f inc: %.3f", scan.angle_min, scan.angle_max,
+            scan.angle_increment);
+  ROS_DEBUG("Laser angles in top-down centered laser-frame: min: %.3f max: %.3f inc: %.3f", laser_angles_.front(),
+            laser_angles_.back(), std::fabs(scan.angle_increment));
 
   GMapping::OrientedPoint gmap_pose(0, 0, 0);
 
@@ -472,7 +477,7 @@ SlamGMapping::initMapper(const sensor_msgs::LaserScan& scan)
   // feeding each scan to GMapping.
   gsp_laser_ = new GMapping::RangeSensor("FLASER",
                                          gsp_laser_beam_count_,
-                                         fabs(gsp_laser_angle_increment_),
+                                         fabs(scan.angle_increment),
                                          gmap_pose,
                                          0.0,
                                          maxRange_);
@@ -533,7 +538,7 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
   // GMapping wants an array of doubles...
   double* ranges_double = new double[scan.ranges.size()];
   // If the angle increment is negative, we have to invert the order of the readings.
-  if (gsp_laser_angle_increment_ < 0)
+  if (do_reverse_range_)
   {
     ROS_DEBUG("Inverting scan");
     int num_ranges = scan.ranges.size();
@@ -575,6 +580,7 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
             gmap_pose.y,
             gmap_pose.theta);
             */
+  ROS_DEBUG("processing scan");
 
   return gsp_->processScan(reading);
 }
@@ -597,6 +603,7 @@ SlamGMapping::laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
   }
 
   GMapping::OrientedPoint odom_pose;
+
   if(addScan(*scan, odom_pose))
   {
     ROS_DEBUG("scan processed");
@@ -619,7 +626,8 @@ SlamGMapping::laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
       last_map_update = scan->header.stamp;
       ROS_DEBUG("Updated the map");
     }
-  }
+  } else
+    ROS_DEBUG("cannot process scan");
 }
 
 double
@@ -646,23 +654,13 @@ SlamGMapping::computePoseEntropy()
 void
 SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
 {
+  ROS_DEBUG("Update map");
   boost::mutex::scoped_lock map_lock (map_mutex_);
   GMapping::ScanMatcher matcher;
-  double* laser_angles = new double[scan.ranges.size()];
-  double theta = angle_min_;
-  for(unsigned int i=0; i<scan.ranges.size(); i++)
-  {
-    if (gsp_laser_angle_increment_ < 0)
-        laser_angles[scan.ranges.size()-i-1]=theta;
-    else
-        laser_angles[i]=theta;
-    theta += gsp_laser_angle_increment_;
-  }
 
-  matcher.setLaserParameters(scan.ranges.size(), laser_angles,
+  matcher.setLaserParameters(scan.ranges.size(), &(laser_angles_[0]),
                              gsp_laser_->getPose());
 
-  delete[] laser_angles;
   matcher.setlaserMaxRange(maxRange_);
   matcher.setusableRange(maxUrange_);
   matcher.setgenerateMap(true);
