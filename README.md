@@ -1,3 +1,28 @@
+## slam_gmapping (lunar) - 1.3.9-0
+
+The packages in the `slam_gmapping` repository were released into the `lunar` distro by running `/usr/bin/bloom-release --rosdistro lunar --track lunar slam_gmapping` on `Sun, 22 Oct 2017 16:23:13 -0000`
+
+These packages were released:
+- `gmapping`
+- `slam_gmapping`
+
+Version of package(s) in repository `slam_gmapping`:
+
+- upstream repository: https://github.com/ros-perception/slam_gmapping
+- release repository: unknown
+- rosdistro version: `null`
+- old version: `null`
+- new version: `1.3.9-0`
+
+Versions of tools used:
+
+- bloom version: `0.6.1`
+- catkin_pkg version: `0.3.8`
+- rosdep version: `0.11.8`
+- rosdistro version: `0.6.2`
+- vcstools version: `0.1.39`
+
+
 ## slam_gmapping (kinetic) - 1.3.9-0
 
 The packages in the `slam_gmapping` repository were released into the `kinetic` distro by running `/usr/bin/bloom-release --rosdistro kinetic --track kinetic slam_gmapping` on `Sun, 22 Oct 2017 16:10:50 -0000`
