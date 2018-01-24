@@ -1,0 +1,13 @@
+Source: ros-kinetic-gmapping
+Section: misc
+Priority: extra
+Maintainer: Vincent Rabaud <vincent.rabaud@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), ros-kinetic-catkin (>= 0.5.68), ros-kinetic-nav-msgs, ros-kinetic-nodelet, ros-kinetic-openslam-gmapping, ros-kinetic-roscpp, ros-kinetic-rostest, ros-kinetic-tf
+Homepage: http://ros.org/wiki/gmapping
+Standards-Version: 3.9.2
+
+Package: ros-kinetic-gmapping
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-kinetic-nav-msgs, ros-kinetic-nodelet, ros-kinetic-openslam-gmapping, ros-kinetic-roscpp, ros-kinetic-tf
+Description: This package contains a ROS wrapper for OpenSlam's Gmapping.
+ The gmapping package provides laser-based SLAM (Simultaneous Localization and Mapping), as a ROS node called slam_gmapping. Using slam_gmapping, you can create a 2-D occupancy grid map (like a building floorplan) from laser and pose data collected by a mobile robot.
