@@ -1,3 +1,28 @@
+## slam_gmapping (melodic) - 1.4.0-1
+
+The packages in the `slam_gmapping` repository were released into the `melodic` distro by running `/usr/bin/bloom-release slam_gmapping --rosdistro melodic --track melodic` on `Fri, 12 Jul 2019 10:04:25 -0000`
+
+These packages were released:
+- `gmapping`
+- `slam_gmapping`
+
+Version of package(s) in repository `slam_gmapping`:
+
+- upstream repository: https://github.com/ros-perception/slam_gmapping
+- release repository: unknown
+- rosdistro version: `null`
+- old version: `1.3.10-1`
+- new version: `1.4.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.8.0`
+- catkin_pkg version: `0.4.12`
+- rosdep version: `0.15.2`
+- rosdistro version: `0.7.4`
+- vcstools version: `0.1.40`
+
+
 ## slam_gmapping (melodic) - 1.3.10-1
 
 The packages in the `slam_gmapping` repository were released into the `melodic` distro by running `/usr/bin/bloom-release slam_gmapping --rosdistro melodic --track melodic` on `Fri, 12 Jul 2019 09:58:22 -0000`
