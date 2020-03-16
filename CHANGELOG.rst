@@ -2,6 +2,9 @@
 Changelog for package slam_gmapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.4.1 (2020-03-16)
+------------------
+
 1.4.0 (2019-07-12)
 ------------------
 * update license to BSD and maintainer to ros-orphaned-packages@googlegroups.com
